@@ -10,13 +10,25 @@ from shiny import App, reactive, render, ui
 
 app_ui = ui.page_sidebar(
     ui.sidebar(
-        ui.input_slider("mass", "Date", 2000, 6000, 6000),
-        ui.input_checkbox_group(
-            "species",
+        ui.input_slider("time", "Date", 2000, 6000, 6000),
+        ui.input_radio_buttons(
+            "satellite",
             "Satellite data",
-            ["Adelie", "Gentoo"],
-            selected=["Adelie", "Gentoo"],
+            choices=["PlanetScope", "Sentinel-2"],
+            selected="PlanetScope"
         )#, title="Date Filter",
+    ),
+    ui.layout_columns(
+        ui.card(
+            ui.card_header("Temperature Detail"),
+            ui.output_plot("temperature_detail"),
+            full_screen=True,
+        ),
+        ui.card(
+            ui.card_header("Enhanced Bloom Index (EBI)"),
+            ui.output_plot("test_plot_run"),
+            full_screen=True,
+        ),
     ),
     ui.layout_column_wrap(
         ui.value_box(
@@ -36,18 +48,6 @@ app_ui = ui.page_sidebar(
         ),
         fill=False,
     ),
-    ui.layout_columns(
-        ui.card(
-            ui.card_header("Bill length and depth"),
-            ui.output_plot("length_depth"),
-            full_screen=True,
-        ),
-        ui.card(
-            ui.card_header("Penguin data"),
-            ui.output_data_frame("summary_statistics"),
-            full_screen=True,
-        ),
-    ),
     ui.include_css(app_dir / "styles.css"),
     title="MI cherry blooming versus temperature",
     fillable=True,
@@ -60,6 +60,28 @@ def server(input, output, session):
         filt_df = df[df["species"].isin(input.species())]
         filt_df = filt_df.loc[filt_df["body_mass_g"] < input.mass()]
         return filt_df
+    
+    @output
+    @render.plot
+    def test_plot_run():
+        from test_plot import test_plot  # Import the test_plot function
+        x = np.linspace(0, 2 * np.pi, 100)
+        s = input.satellite()
+        if s == "Sentinel-2":
+            test_plot(x, np.cos(x), label="Sentinel-2")
+        elif s == "PlanetScope":
+            test_plot(x, np.sin(x), label="PlanetScope")
+        plt.ylim(-2, 2)
+        plt.title("Selected Functions")
+        plt.legend()
+
+    @output
+    @render.plot
+    def temperature_detail():
+        n = input.time()
+        x = np.linspace(0, 2 * np.pi, n//100)
+        plt.scatter(x, np.sin(x))
+        plt.ylim(-2, 2)
 
     @render.text
     def count():
