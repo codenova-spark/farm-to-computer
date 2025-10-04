@@ -15,6 +15,12 @@ This project aims to leverage NASA satellite data and weather information to:
 ## Getting Started
 More information coming soon.
 
+## GitHub Pages
+A GitHub Pages site has been set up for this project. Once deployed, it will be available at:
+https://codenova-spark.github.io/farm-to-computer/
+
+See [GITHUB_PAGES.md](GITHUB_PAGES.md) for setup details.
+
 ## License
 This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 
