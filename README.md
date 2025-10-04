@@ -48,7 +48,9 @@ Michigan experiences temperature swings that require more complex models to full
 Once a tree has met its "chill hour" requirement, it enters ecodormacy. At this point, it requires warmer temperatures to resume growth. The "growing degree days" (GDD) metric help us determine when the blooming events are going to occur.
 
 GDD is calculated by multiplying the number of F degrees above 41 F by the number of days at that temperature. Mathematically, for each day $i$ after the chill hour criteria is met:
+
 $$ {\rm GDD} = \Sigma_i (T_i - 41\ {\rm F}) $$
+
 where $T_i$ is the temperature on day $i$.
 
 Montmorency variety tart cherries (accounting for the majority of Michigan tart cherry production) bloom around 230-250 GDD.
@@ -72,3 +74,9 @@ What can we expect in the future?
 ## What's next?
 
 What can apple farmers do to prevent crop losses?
+
+## AI Statement
+
+We used Google Gemini for help researching the blooming conditions for cherry trees, as well as the cherry's significance to Michigan agriculture. This is how we learned about chill hours and GDD. All writing in this document was written independently after synthesizing the necessary information.
+
+
