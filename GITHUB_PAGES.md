@@ -17,16 +17,36 @@ The gh-pages branch includes:
 ### To Deploy
 
 To enable GitHub Pages for this repository:
-1. The gh-pages branch needs to be pushed to the remote repository
-2. In the repository settings, configure GitHub Pages to use the gh-pages branch
-3. The site will be available at: https://codenova-spark.github.io/farm-to-computer/
+
+1. **Push the gh-pages branch** (after merging this PR):
+   ```bash
+   git push origin gh-pages
+   ```
+   Or use the provided script:
+   ```bash
+   ./deploy-gh-pages.sh
+   ```
+
+2. **Configure GitHub Pages** in repository settings:
+   - Go to Settings → Pages
+   - Source: Select `gh-pages` branch
+   - Click Save
+
+3. **Access your site** at:
+   https://codenova-spark.github.io/farm-to-computer/
 
 ### Manual Push Required
 
-Due to authentication constraints in this environment, the gh-pages branch was created locally but requires manual push:
+The gh-pages branch has been created locally with all necessary files. Due to environment constraints, it requires a manual push after this PR is merged:
 
 ```bash
+git checkout main
 git push origin gh-pages
+```
+
+Or use the deployment script:
+```bash
+./deploy-gh-pages.sh
 ```
 
 Once pushed, GitHub Pages will automatically serve the index.html file.
