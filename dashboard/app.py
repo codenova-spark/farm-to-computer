@@ -14,6 +14,13 @@ import pandas as pd
 from shared import app_dir, df
 from shiny import App, reactive, render, ui
 
+import rasterio
+from scipy.ndimage import rotate
+import matplotlib.colors as mcolors
+import os
+
+
+
 ## ----- Temperature information ------
 
 def C_to_F(c):
@@ -74,7 +81,7 @@ df_interp = interpolateTemp(
     cherrylat, cherrylon
 )
 
-#chill hour counter
+#chill hour counter, this can be edited to your preferred model
 interp_chill = pd.DataFrame(index=df_interp.index)
 interp_chill['chill_score'] = np.select(
     [
@@ -146,7 +153,7 @@ def _dayplot(idx):
     ax.axhspan(ymin=C_to_F(7.2222), ymax=C_to_F(15.5556), facecolor='grey', alpha=0.3, label="moderate temp, zero weight")
     ax.axhspan(ymin=C_to_F(15.5556), ymax=C_to_F(35), facecolor='pink', alpha=0.3, label="high temp, negative weight")
     ax.axhspan(ymin=C_to_F(0), ymax=C_to_F(7.22222), facecolor='lightblue', alpha=0.3, label="optimal chill temp, positive weight")
-    ax.axhline(C_to_F(0), color='blue', alpha=0.4, linestyle='--', linewidth=1.5, label='32°F (Freezing)')
+    ax.axhline(C_to_F(0), color='darkblue', alpha=0.4, linestyle=':', linewidth=1.5, label='32°F (Freezing)')
     ax.grid(True)
     ax.xaxis.grid(True, color='lightgray', alpha=0.2)
     ax.yaxis.grid(True, color='lightgray', alpha=0.2)
@@ -155,7 +162,7 @@ def _dayplot(idx):
 def _longterm_plot(threshold=250, idx=0):
     from matplotlib.gridspec import GridSpec
     fig = plt.figure(figsize=(12, 8))
-    gs = GridSpec(3, 1, hspace=0.0)
+    gs = GridSpec(3, 1, hspace=0.1)
     ax1 = plt.subplot(gs[0]) #regular temp v time subplot,
     ax2 = plt.subplot(gs[1], sharex=ax1)  #chill hours subplot
     ax3 = plt.subplot(gs[2], sharex=ax1)
@@ -172,9 +179,9 @@ def _longterm_plot(threshold=250, idx=0):
     ax1.axhspan(ymin=C_to_F(7.2222), ymax=C_to_F(15.5556), facecolor='grey', alpha=0.3, label="moderate temp, zero weight")
     ax1.axhspan(ymin=C_to_F(15.5556), ymax=C_to_F(35), facecolor='pink', alpha=0.3, label="high temp, negative weight")
     ax1.axhspan(ymin=C_to_F(0), ymax=C_to_F(7.22222), facecolor='lightblue', alpha=0.3, label="optimal chill temp, positive weight")
-    ax1.axhline(C_to_F(0), color='blue', linestyle='--', linewidth=1.5, label='32°F (Freezing)')
+    ax1.axhline(C_to_F(0), color='darkblue', alpha=0.4, linestyle=':', linewidth=1.5, label='32°F (Freezing)')
     
-    ax2.plot(interp_chill.index, interp_chill['chill_accum'], label="Accumulated Chill hours", color="brown")
+    ax2.plot(interp_chill.index, interp_chill['chill_accum'], label="Accumulated Chill hours", color="cornflowerblue")
     # ax2.axhline(threshold, color='blue', linestyle='--', label='1200 Chill hours')
     reached = interp_chill[interp_chill['chill_accum'] >= threshold]
     if not reached.empty:
@@ -186,7 +193,7 @@ def _longterm_plot(threshold=250, idx=0):
       ax2.plot(first_time, first_accum, 'ro', label=f"First Reached 250 ({first_time.strftime('%Y-%m-%d %H:%M')})")
       ax2.axvline(first_time, color='red', linestyle=':', alpha=0.6)
 
-    ax3.plot(interp_chill.index, interp_chill['gdd_cum'], color='green', label='Accumulated GDD (F>41)', linewidth=2)
+    ax3.plot(interp_chill.index, interp_chill['gdd_cum'], color='olive', label='Accumulated GDD (F>41)', linewidth=2)
     ax1.set_xlabel("Time")
     ax1.set_ylabel("Temp (F)")
     ax2.set_ylabel("Chill Points (CP)")
@@ -200,7 +207,7 @@ def _longterm_plot(threshold=250, idx=0):
 
 app_ui = ui.page_sidebar(
     ui.sidebar(
-        ui.input_slider("date_slider", "Start Day:",
+        ui.input_slider("date_slider", "Select the start day of 5 day period:",
                 min=0, max=len(unique_dates)-5, value=0, step=5, ticks=False),
         ui.input_slider("chill_threshold", "Chill Points Threshold:",
                 min=0, max=1000, value=250, step=10, ticks=False),
@@ -213,7 +220,7 @@ app_ui = ui.page_sidebar(
     ),
     ui.layout_columns(
         ui.card(
-            ui.card_header("Temperature Detail"),
+            ui.card_header("Temperature Detail of 5 day Period"),
             ui.output_plot("dayplot"),
             full_screen=True,
         ),
@@ -274,17 +281,62 @@ def server(input, output, session):
     
     @output
     @render.plot
-    def test_plot_run():
-        from test_plot import test_plot  # Import the test_plot function
-        x = np.linspace(0, 2 * np.pi, 100)
-        s = input.satellite()
-        if s == "Sentinel-2":
-            test_plot(x, np.cos(x), label="Sentinel-2")
-        elif s == "PlanetScope":
-            test_plot(x, np.sin(x), label="PlanetScope")
-        plt.ylim(-2, 2)
-        plt.title("Selected Functions")
-        plt.legend()
+    def test_plot_run(file="20250311.tif"):
+    # def test_plot_run(file="../data/planetscope/20250311.tif"):
+        # from ebi_plot import test_plot  # Import the test_plot function
+        # x = np.linspace(0, 2 * np.pi, 100)
+        # s = input.satellite()
+        # if s == "Sentinel-2":
+        #     test_plot(x, np.cos(x), label="Sentinel-2")
+        # elif s == "PlanetScope":
+        #     test_plot(x, np.sin(x), label="PlanetScope")
+        # plt.ylim(-2, 2)
+        # plt.title("Selected Functions")
+        # plt.legend()
+        # from ebilib import plot_ebi_planetscope  # Import the test_plot function
+        # plot_ebi_planetscope(app_dir / "../data/planetscope" / file)  # Call the function to plot EBI
+        epsilon = 1e-6
+        fdat = rasterio.open(app_dir / "../data/planetscope" / file)
+        blue  = fdat.read(1).astype(float) / 10000.0
+        green = fdat.read(2).astype(float) / 10000.0
+        red   = fdat.read(3).astype(float) / 10000.0
+        nir   = fdat.read(4).astype(float) / 10000.0
+
+        # Compute EBI
+        ebi = (red + green + blue) / (green / (blue + epsilon) + epsilon) / (red - blue + 256)
+        ebi_norm = (ebi - np.nanmin(ebi)) / (np.nanmax(ebi) - np.nanmin(ebi) + epsilon)
+
+        # Compute NDVI for vegetation mask
+        ndvi = (nir - red) / (nir + red + epsilon)
+
+        # Vegetation mask
+        veg_mask = ndvi > 0.5  # adjust threshold if needed
+
+        # Apply mask: keep EBI where vegetation, set non-veg to 0 (black)
+        ebi_masked = np.zeros_like(ebi_norm)
+        ebi_masked[veg_mask] = ebi_norm[veg_mask]
+
+        # Rotation correction
+        ebi_rotated = rotate(ebi_masked, -1, reshape=False, order=1, mode='constant', cval=0)
+        ebi_plot = np.ma.masked_equal(ebi_rotated, 0)
+
+        # Custom cyan -> orange colormap
+        cmap = mcolors.LinearSegmentedColormap.from_list("cyan_orange", ["cyan", "red"])
+
+        # Plot with automatic rotation correction
+        # fig = plt.figure(figsize=(8, 8))
+        # ax = fig.add_subplot(1, 1, 1)  # let matplotlib handle axes placement automatically
+        # im = ax.imshow(ebi_plot, cmap=cmap, vmin=0.0, vmax=0.5)
+        # cbar = fig.colorbar(im, ax=ax, fraction=0.02, label="EBI (Blossom Intensity)")
+        # ax.set_title(f"EBI with Vegetation Mask - {os.path.basename(tif_path)}")
+        # ax.axis("off")
+
+        fig = plt.figure(figsize=(8, 8))
+        im = plt.imshow(ebi_plot, cmap=cmap, vmin=0.0, vmax=0.5)
+        cbar = fig.colorbar(im, fraction=0.02, label="EBI (Blossom Intensity)")
+        plt.title(f"EBI with Vegetation Mask - {os.path.basename(file)}")
+        plt.axis("off")
+
 
     @output
     @render.plot
