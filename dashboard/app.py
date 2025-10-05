@@ -2,7 +2,6 @@ import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
 matplotlib.use('Agg')
-import seaborn as sns
 from faicons import icon_svg
 
 from meteostat import Stations, Hourly
@@ -75,7 +74,6 @@ df_interp = interpolateTemp(
     cherrylat, cherrylon
 )
 
-
 # Example data (replace with your actual DataFrames)
 
 df_interp.index = pd.to_datetime(df_interp.index)
@@ -130,6 +128,24 @@ def _dayplot(idx):
     ax.yaxis.grid(True, color='lightgray', alpha=0.2)
     plt.tight_layout()
 
+def _longterm_plot():
+    from matplotlib.gridspec import GridSpec
+    fig = plt.figure(figsize=(12, 8))
+    gs = GridSpec(3, 1, hspace=0.0)
+    ax1 = plt.subplot(gs[0])
+    ax2 = plt.subplot(gs[1], sharex=ax1)
+    ax3 = plt.subplot(gs[2], sharex=ax1)
+    # ax1.plot(...your code here ....)
+    # ax2.plot(...your code here ....)
+    # ax3.plot(...your code here ....)
+    ax1.set_xlabel("Time")
+    ax1.set_ylabel("Temp (F)")
+    ax2.set_ylabel("Chill Points (CP)")
+    ax3.set_ylabel("GDD")
+
+
+
+
 ## ------- App UI --------
 
 
@@ -153,6 +169,13 @@ app_ui = ui.page_sidebar(
         ui.card(
             ui.card_header("Enhanced Bloom Index (EBI)"),
             ui.output_plot("test_plot_run"),
+            full_screen=True,
+        ),
+    ),
+    ui.layout_columns(
+        ui.card(
+            ui.card_header("Blossoming Season"),
+            ui.output_plot("longterm_plot"),
             full_screen=True,
         ),
     ),
@@ -186,7 +209,12 @@ def server(input, output, session):
     def dayplot():
         idx = input.date_slider()
         _dayplot(idx)
-    
+
+    @output
+    @render.plot
+    def longterm_plot():
+        _longterm_plot()
+
     @reactive.calc
     def filtered_df():
         filt_df = df[df["species"].isin(input.species())]
@@ -226,15 +254,6 @@ def server(input, output, session):
     @render.text
     def bill_depth():
         return f"{filtered_df()['bill_depth_mm'].mean():.1f} mm"
-
-    @render.plot
-    def length_depth():
-        return sns.scatterplot(
-            data=filtered_df(),
-            x="bill_length_mm",
-            y="bill_depth_mm",
-            hue="species",
-        )
 
     @render.data_frame
     def summary_statistics():
