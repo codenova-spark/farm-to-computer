@@ -17,6 +17,9 @@ from shiny import App, reactive, render, ui
 
 ## ----- Temperature information ------
 
+def C_to_F(c):
+    return c * 9/5 + 32
+
 # create a time frame, we are looking at april 2025 - june 2025
 start = datetime(2025, 4, 1)
 end = datetime(2025, 5, 31)
@@ -101,11 +104,11 @@ def _dayplot(idx):
     
     # Plot, using full datetime so the x-axis spans 5*24 points
     if not df_days_interp.empty:
-        ax.plot(df_days_interp.index, df_days_interp['temp_interp'], label='Interpolated Temp (Orchard)', color='brown', linewidth=2)
+        ax.plot(df_days_interp.index, C_to_F(df_days_interp['temp_interp']), label='Interpolated Temp (Orchard)', color='brown', linewidth=2)
     if not df_days_tvc.empty:
-        ax.plot(df_days_tvc.index, df_days_tvc['temp'], alpha=0.4, label='TVC (Cherry Capital Airport)', color='brown', linewidth=1)
+        ax.plot(df_days_tvc.index, C_to_F(df_days_tvc['temp']), alpha=0.4, label='TVC (Cherry Capital Airport)', color='brown', linewidth=1)
     if not df_days_acb.empty:
-        ax.plot(df_days_acb.index, df_days_acb['temp'], alpha=0.4, label='ACB (Antrim County Airport)', color='brown', linewidth=1)
+        ax.plot(df_days_acb.index, C_to_F(df_days_acb['temp']), alpha=0.4, label='ACB (Antrim County Airport)', color='brown', linewidth=1)
     ax.set_xlabel("Date/Hour")
     
     x_vals = df_days_interp.index
@@ -116,12 +119,12 @@ def _dayplot(idx):
         labels[i] = x_vals[i].strftime('%m-%d')
     ax.set_xticklabels(labels, rotation=0, fontsize=10)
     
-    ax.set_ylabel("Temperature (C)")
-    ax.set_title(f"Temperature (C), {str(days[0])[:10]} to {str(days[-1])[:10]}")
-    ax.axhspan(ymin=7.2222, ymax=15.5556, facecolor='orchid', alpha=0.3, label="moderate temp, zero weight")
-    ax.axhspan(ymin=15.5556, ymax=35, facecolor='pink', alpha=0.3, label="high temp, negative weight")
-    ax.axhspan(ymin=0, ymax=7.22222, facecolor='lightblue', alpha=0.3, label="optimal chill temp, positive weight")
-    ax.axhline(0, color='blue', linestyle='--', linewidth=1.5, label='0°C (Freezing)')
+    ax.set_ylabel("Temperature (F)")
+    ax.set_title(f"Temperature (F), {str(days[0])[:10]} to {str(days[-1])[:10]}")
+    ax.axhspan(ymin=C_to_F(7.2222), ymax=C_to_F(15.5556), facecolor='orchid', alpha=0.3, label="moderate temp, zero weight")
+    ax.axhspan(ymin=C_to_F(15.5556), ymax=C_to_F(35), facecolor='pink', alpha=0.3, label="high temp, negative weight")
+    ax.axhspan(ymin=C_to_F(0), ymax=C_to_F(7.22222), facecolor='lightblue', alpha=0.3, label="optimal chill temp, positive weight")
+    ax.axhline(C_to_F(0), color='blue', linestyle='--', linewidth=1.5, label='32°F (Freezing)')
     ax.grid(True)
     ax.xaxis.grid(True, color='lightgray', alpha=0.2)
     ax.yaxis.grid(True, color='lightgray', alpha=0.2)

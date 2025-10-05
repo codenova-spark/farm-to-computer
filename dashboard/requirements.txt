@@ -1,0 +1,6 @@
+meteostat
+geopy
+faicons
+shiny
+seaborn
+pandas
