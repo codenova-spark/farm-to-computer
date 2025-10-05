@@ -4,7 +4,7 @@ Our NASA Space Apps Challenge team is monitoring cherry blossoms to chart cherry
 
 ## Problem
 
-How are warming global temperatures affecting cherry growing seasons and yields?
+How do temperature fluctuations affect Michigan cherry season?
 
 ### Cherries and Michigan
 

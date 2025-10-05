@@ -1,7 +1,7 @@
 import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 from faicons import icon_svg
 
 from meteostat import Stations, Hourly
@@ -20,7 +20,7 @@ def C_to_F(c):
     return c * 9/5 + 32
 
 # create a time frame, we are looking at april 2025 - june 2025
-start = datetime(2025, 4, 1)
+start = datetime(2025, 2, 1)
 end = datetime(2025, 5, 31)
 
 # station IDs 
@@ -74,7 +74,31 @@ df_interp = interpolateTemp(
     cherrylat, cherrylon
 )
 
-# Example data (replace with your actual DataFrames)
+#chill hour counter
+interp_chill = pd.DataFrame(index=df_interp.index)
+interp_chill['chill_score'] = np.select(
+    [
+        (df_interp['temp_interp'] >= 0) & (df_interp['temp_interp'] < 7.22222),
+        (df_interp['temp_interp'] >= 7.22222) & (df_interp['temp_interp'] < 15.5556),
+        (df_interp['temp_interp'] >= 15.5556)
+    ],
+    [1, 0, -1],
+    default=0
+)
+interp_chill['chill_accum'] = interp_chill['chill_score'].cumsum()
+
+#GDD counter
+interp_chill['temp_interp_F'] = C_to_F(df_interp['temp_interp'])
+interp_chill['gdd_hr'] = np.maximum(interp_chill['temp_interp_F'] - 41, 0) / 24
+
+chill_threshold = 250
+if (interp_chill['chill_accum'] >= chill_threshold).any():
+    first_gdd_time = interp_chill[interp_chill['chill_accum'] >= chill_threshold].index[0]
+    interp_chill['gdd_hr_masked'] = np.where(interp_chill.index >= first_gdd_time, interp_chill['gdd_hr'], 0)
+else:
+    interp_chill['gdd_hr_masked'] = 0.0
+
+interp_chill['gdd_cum'] = interp_chill['gdd_hr_masked'].cumsum()
 
 df_interp.index = pd.to_datetime(df_interp.index)
 df_tvc.index = pd.to_datetime(df_tvc.index)
@@ -95,18 +119,18 @@ def _selected_five_days(idx):
 
 def _dayplot(idx):
     df_days_interp, df_days_tvc, df_days_acb, days = _selected_five_days(idx)
-    fig, ax = plt.subplots(figsize=(12, 5))
+    fig, ax = plt.subplots(figsize=(4,4))
     
     # plt.tight_layout(rect=[0, 0, 0.8, 1])  # Leaves space for legend
     # ax.legend(by_label.values(), by_label.keys(), loc='center left', bbox_to_anchor=(1.05, 0.5), frameon=True)
     
     # Plot, using full datetime so the x-axis spans 5*24 points
     if not df_days_interp.empty:
-        ax.plot(df_days_interp.index, C_to_F(df_days_interp['temp_interp']), label='Interpolated Temp (Orchard)', color='brown', linewidth=2)
+        ax.plot(df_days_interp.index, C_to_F(df_days_interp['temp_interp']), label='Interpolated Temp (Orchard)', color='red', linewidth=1.5)
     if not df_days_tvc.empty:
-        ax.plot(df_days_tvc.index, C_to_F(df_days_tvc['temp']), alpha=0.4, label='TVC (Cherry Capital Airport)', color='brown', linewidth=1)
+        ax.plot(df_days_tvc.index, C_to_F(df_days_tvc['temp']), alpha=0.4, label='TVC (Cherry Capital Airport)', color='red', linewidth=1)
     if not df_days_acb.empty:
-        ax.plot(df_days_acb.index, C_to_F(df_days_acb['temp']), alpha=0.4, label='ACB (Antrim County Airport)', color='brown', linewidth=1)
+        ax.plot(df_days_acb.index, C_to_F(df_days_acb['temp']), alpha=0.4, label='ACB (Antrim County Airport)', color='red', linewidth=1)
     ax.set_xlabel("Date/Hour")
     
     x_vals = df_days_interp.index
@@ -119,25 +143,42 @@ def _dayplot(idx):
     
     ax.set_ylabel("Temperature (F)")
     ax.set_title(f"Temperature (F), {str(days[0])[:10]} to {str(days[-1])[:10]}")
-    ax.axhspan(ymin=C_to_F(7.2222), ymax=C_to_F(15.5556), facecolor='orchid', alpha=0.3, label="moderate temp, zero weight")
+    ax.axhspan(ymin=C_to_F(7.2222), ymax=C_to_F(15.5556), facecolor='grey', alpha=0.3, label="moderate temp, zero weight")
     ax.axhspan(ymin=C_to_F(15.5556), ymax=C_to_F(35), facecolor='pink', alpha=0.3, label="high temp, negative weight")
     ax.axhspan(ymin=C_to_F(0), ymax=C_to_F(7.22222), facecolor='lightblue', alpha=0.3, label="optimal chill temp, positive weight")
-    ax.axhline(C_to_F(0), color='blue', linestyle='--', linewidth=1.5, label='32°F (Freezing)')
+    ax.axhline(C_to_F(0), color='blue', alpha=0.4, linestyle='--', linewidth=1.5, label='32°F (Freezing)')
     ax.grid(True)
     ax.xaxis.grid(True, color='lightgray', alpha=0.2)
     ax.yaxis.grid(True, color='lightgray', alpha=0.2)
-    plt.tight_layout()
+    # plt.tight_layout()
 
-def _longterm_plot():
+def _longterm_plot(threshold=250):
     from matplotlib.gridspec import GridSpec
     fig = plt.figure(figsize=(12, 8))
     gs = GridSpec(3, 1, hspace=0.0)
-    ax1 = plt.subplot(gs[0])
-    ax2 = plt.subplot(gs[1], sharex=ax1)
+    ax1 = plt.subplot(gs[0]) #regular temp v time subplot,
+    ax2 = plt.subplot(gs[1], sharex=ax1)  #chill hours subplot
     ax3 = plt.subplot(gs[2], sharex=ax1)
-    # ax1.plot(...your code here ....)
-    # ax2.plot(...your code here ....)
-    # ax3.plot(...your code here ....)
+    
+    ax1.plot(df_interp.index, C_to_F(df_interp['temp_interp']), label='Interpolated temp. of orchard)', color='red', linewidth=1.5 )
+    ax1.axhspan(ymin=C_to_F(7.2222), ymax=C_to_F(15.5556), facecolor='grey', alpha=0.3, label="moderate temp, zero weight")
+    ax1.axhspan(ymin=C_to_F(15.5556), ymax=C_to_F(35), facecolor='pink', alpha=0.3, label="high temp, negative weight")
+    ax1.axhspan(ymin=C_to_F(0), ymax=C_to_F(7.22222), facecolor='lightblue', alpha=0.3, label="optimal chill temp, positive weight")
+    ax1.axhline(C_to_F(0), color='blue', linestyle='--', linewidth=1.5, label='32°F (Freezing)')
+    
+    ax2.plot(interp_chill.index, interp_chill['chill_accum'], label="Accumulated Chill hours", color="brown")
+    # ax2.axhline(threshold, color='blue', linestyle='--', label='1200 Chill hours')
+    reached = interp_chill[interp_chill['chill_accum'] >= threshold]
+    if not reached.empty:
+     first_time = reached.index[0]
+     first_accum = reached['chill_accum'].iloc[0]
+    else:
+     first_time = None
+    if first_time is not None:
+      ax2.plot(first_time, first_accum, 'ro', label=f"First Reached 250 ({first_time.strftime('%Y-%m-%d %H:%M')})")
+      ax2.axvline(first_time, color='red', linestyle=':', alpha=0.6)
+
+    ax3.plot(interp_chill.index, interp_chill['gdd_cum'], color='green', label='Accumulated GDD (F>41)', linewidth=2)
     ax1.set_xlabel("Time")
     ax1.set_ylabel("Temp (F)")
     ax2.set_ylabel("Chill Points (CP)")
@@ -152,7 +193,9 @@ def _longterm_plot():
 app_ui = ui.page_sidebar(
     ui.sidebar(
         ui.input_slider("date_slider", "Start Day:",
-                min=0, max=len(unique_dates)-5, value=0, step=1, ticks=False),
+                min=0, max=len(unique_dates)-5, value=0, step=5, ticks=False),
+        ui.input_slider("chill_threshold", "Chill Points Threshold:",
+                min=0, max=1000, value=250, step=10, ticks=False),
         ui.input_radio_buttons(
             "satellite",
             "Satellite data",
@@ -181,19 +224,19 @@ app_ui = ui.page_sidebar(
     ),
     ui.layout_column_wrap(
         ui.value_box(
-            "Number of penguins",
-            ui.output_text("count"),
-            showcase=icon_svg("earlybirds"),
+            "Chill Points accumulated",
+            ui.output_text("chill_point_count"),
+            showcase=icon_svg("snowflake"),
         ),
         ui.value_box(
-            "Average bill length",
-            ui.output_text("bill_length"),
-            showcase=icon_svg("ruler-horizontal"),
+            "GDD accumulated",
+            ui.output_text("gdd_cum"),
+            showcase=icon_svg("leaf"),
         ),
         ui.value_box(
-            "Average bill depth",
-            ui.output_text("bill_depth"),
-            showcase=icon_svg("ruler-vertical"),
+            "Total EBI",
+            ui.output_text("ebi_total"),
+            showcase=icon_svg("clover"),
         ),
         fill=False,
     ),
@@ -213,7 +256,7 @@ def server(input, output, session):
     @output
     @render.plot
     def longterm_plot():
-        _longterm_plot()
+        _longterm_plot(input.chill_threshold())
 
     @reactive.calc
     def filtered_df():
@@ -244,16 +287,40 @@ def server(input, output, session):
         plt.ylim(-2, 2)
 
     @render.text
-    def count():
-        return filtered_df().shape[0]
+    def chill_point_count():
+        # Get idx of 5-day window start
+        idx = input.date_slider()
+        if idx > len(unique_dates) - 5:
+            idx = len(unique_dates) - 5
+        # Calculate last date in window
+        end_day = unique_dates[idx + 5 - 1]  # Inclusive last day of window
+
+        # Find the last timestamp (hour) within the last day of window
+        mask = interp_chill.index.date == end_day.date() if hasattr(end_day, 'date') else end_day
+        sub = interp_chill[mask]
+        if len(sub) > 0:
+            last_chill = sub['chill_accum'].iloc[-1]
+            return f"{last_chill:.0f}"
+        else:
+            return "N/A"
 
     @render.text
-    def bill_length():
-        return f"{filtered_df()['bill_length_mm'].mean():.1f} mm"
-
+    def gdd_cum():
+        idx = input.date_slider()
+        if idx > len(unique_dates) - 5:
+            idx = len(unique_dates) - 5
+        end_day = unique_dates[idx + 5 - 1]
+        mask = interp_chill.index.date == end_day.date() if hasattr(end_day, 'date') else end_day
+        sub = interp_chill[mask]
+        if len(sub) > 0:
+            last_gdd = sub['gdd_cum'].iloc[-1]
+            return f"{last_gdd:.1f}"
+        else:
+            return "N/A"
+        
     @render.text
-    def bill_depth():
-        return f"{filtered_df()['bill_depth_mm'].mean():.1f} mm"
+    def ebi_total():
+        return f"{filtered_df()['ebi_total'].mean():.1f} mm"
 
     @render.data_frame
     def summary_statistics():
