@@ -152,14 +152,22 @@ def _dayplot(idx):
     ax.yaxis.grid(True, color='lightgray', alpha=0.2)
     # plt.tight_layout()
 
-def _longterm_plot(threshold=250):
+def _longterm_plot(threshold=250, idx=0):
     from matplotlib.gridspec import GridSpec
     fig = plt.figure(figsize=(12, 8))
     gs = GridSpec(3, 1, hspace=0.0)
     ax1 = plt.subplot(gs[0]) #regular temp v time subplot,
     ax2 = plt.subplot(gs[1], sharex=ax1)  #chill hours subplot
     ax3 = plt.subplot(gs[2], sharex=ax1)
-    
+
+    # --------- Highlight 5-day window ---------
+    if idx > len(unique_dates) - 5:
+        idx = len(unique_dates) - 5
+    window_start = pd.to_datetime(unique_dates[idx])
+    window_end = pd.to_datetime(unique_dates[idx + 5 - 1]) + pd.Timedelta(hours=23)
+    for ax in (ax1, ax2, ax3):
+        ax.axvspan(window_start, window_end, color="gold", alpha=0.15, zorder=0)
+
     ax1.plot(df_interp.index, C_to_F(df_interp['temp_interp']), label='Interpolated temp. of orchard)', color='red', linewidth=1.5 )
     ax1.axhspan(ymin=C_to_F(7.2222), ymax=C_to_F(15.5556), facecolor='grey', alpha=0.3, label="moderate temp, zero weight")
     ax1.axhspan(ymin=C_to_F(15.5556), ymax=C_to_F(35), facecolor='pink', alpha=0.3, label="high temp, negative weight")
@@ -256,7 +264,7 @@ def server(input, output, session):
     @output
     @render.plot
     def longterm_plot():
-        _longterm_plot(input.chill_threshold())
+        _longterm_plot(input.chill_threshold(), input.date_slider())
 
     @reactive.calc
     def filtered_df():
