@@ -18,6 +18,7 @@ import rasterio
 from scipy.ndimage import rotate
 import matplotlib.colors as mcolors
 import os
+import glob
 
 ## ----- Temperature information ------
 
@@ -261,8 +262,8 @@ def _plot_ebi_planetscope(file="20250311.tif"):
 
     fig = plt.figure(figsize=(8, 8))
     im = plt.imshow(ebi_plot, cmap=cmap, vmin=0.0, vmax=0.5)
-    cbar = fig.colorbar(im, fraction=0.02, label="EBI (Blossom Intensity)")
-    plt.title(f"EBI - {os.path.basename(file)}")
+    cbar = fig.colorbar(im, fraction=0.02, label="EBI (Effective Bloom Index)")
+    # plt.title("Blossom Intensity")
     plt.axis("off")
     total_ebi = np.sum(ebi_norm[veg_mask])
     return total_ebi
@@ -337,7 +338,113 @@ def _bloom_windows():
     return merged
             
             
-            
+def _plot_ebi_sentinel2(date="20240426"):
+    from pyproj import Transformer
+    from rasterio.windows import Window
+
+    # Some constants for this function
+    veg_threshold = 0.5
+    # plotting
+    window_size = 100 # pixels around orchard (~100x100 pixel window)
+    figure_size = 8
+    # Latitude/Longitude of orchard (decimal degrees)
+    lat, lon = 44.83444, -85.44333 # approximately 44-50-04 N, 85-26-36 W
+
+    # other variables (don't change these)
+    resolution = '10' # unfortunately only 10 works because resolutions 20 and 60 don't have B08 vegetation data
+    # how many standard deviations away count as an outlier in the data
+    outlier_stdevs_away = 40 # the outliers are really far away (> 100 stdevs)
+
+    # folder path for this date
+    folder_start = 'data/sentinel2/cherry_'
+    folder = f'{folder_start}{date}/R10m/'
+
+    bluepath = folder + 'B02.jp2'
+    greenpath = folder + 'B03.jp2'
+    redpath = folder + 'B04.jp2'
+    vegpath = folder + 'B08.jp2'
+
+    ### Set up window
+    # Open one band to get raster CRS
+    with rasterio.open(bluepath) as src:
+        raster_crs = src.crs
+        width = src.width
+        height = src.height
+    
+    # Transform lat/lon to raster CRS
+    transformer = Transformer.from_crs("EPSG:4326", raster_crs, always_xy=True)
+    x, y = transformer.transform(lon, lat)
+    # Find pixel row/col in the raster
+    row, col = src.index(x, y)
+    # Define window bounds around orchard
+    window_size = 100
+    row_start = max(row - window_size, 0)
+    row_end = min(row + window_size, src.height)
+    col_start = max(col - window_size, 0)
+    col_end = min(col + window_size, src.width)
+    window = Window(col_start, row_start, col_end - col_start, row_end - row_start)
+
+    ### Read only the window for each band
+    with rasterio.open(bluepath) as src:
+        initial = src.read(1, window=window)
+        diff = float(np.nanmax(initial) - np.nanmin(initial))
+        blue = initial - np.nanmin(initial)
+        if diff:
+            blue = blue / diff
+    with rasterio.open(greenpath) as src:
+        initial = src.read(1, window=window)
+        diff = float(np.nanmax(initial) - np.nanmin(initial))
+        green = initial - np.nanmin(initial)
+        if diff:
+            green = green / diff
+    with rasterio.open(redpath) as src:
+        initial = src.read(1, window=window)
+        diff = float(np.nanmax(initial) - np.nanmin(initial))
+        red = initial - np.nanmin(initial)
+        if diff:
+            red = red / diff
+    with rasterio.open(vegpath) as src:
+        initial = src.read(1, window=window)
+        diff = float(np.nanmax(initial) - np.nanmin(initial))
+        nri = initial - np.nanmin(initial)
+        if diff:
+            nri = nri / diff
+
+    ### EBI
+    # avoid division by 0
+    epsilon = 1e-6
+    # Compute EBI and normalize
+    ebi = (red + green + blue) / ((green + epsilon) / (blue + epsilon)) / (red - blue + 256)
+    ebi_norm = (ebi - np.nanmin(ebi)) / (np.nanmax(ebi) - np.nanmin(ebi) + epsilon)
+    # adjusting for outliers
+    outliers = ebi_norm > 40*np.std(ebi_norm)
+    ebi_norm_adj = ebi_norm.copy()
+    ebi_norm_adj[outliers] = 0
+
+    ### Vegetation mask
+    # Compute NDVI for vegetation mask
+    ndvi = (nri - red) / (nri + red + epsilon)
+    # Vegetation mask
+    veg_mask = ndvi > veg_threshold  # adjust threshold if needed
+    # Apply mask to EBI
+    ebi_veg = ebi_norm_adj.copy()
+    ebi_veg[~veg_mask] = 0 # zero out non-vegetation areas
+    # renormalize newly masked EBI
+    ebi_veg_norm = ebi_veg - np.nanmin(ebi_veg)
+    diff = float(np.nanmax(ebi_veg) - np.nanmin(ebi_veg))
+    if diff:
+        ebi_veg_norm = ebi_veg_norm / diff
+
+    ### Plot
+    # Custom cyan -> orange colormap
+    cmap = mcolors.LinearSegmentedColormap.from_list("cyan_orange", ["cyan", "red"])
+    # Plot figure
+    plt.figure(figsize=(8, 8))
+    plt.imshow(ebi_veg_norm, cmap=cmap)
+    plt.colorbar(label='EBI - vegetation only')
+    plt.title(date + ' EBI filtered for vegetation')
+    plt.axis('off')
+    # plt.show()
 
 
 
@@ -367,7 +474,7 @@ app_ui = ui.page_sidebar(
         # ),
         # ui.card(
             # ui.card_header("Enhanced Bloom Index (EBI)"),
-            ui.output_plot("plot_ebi_planetscope"),
+            ui.output_plot("plot_ebi"),
             # full_screen=True,
         # ),
     ),
@@ -427,8 +534,6 @@ def server(input, output, session):
         filt_df = filt_df.loc[filt_df["body_mass_g"] < input.mass()]
         return filt_df
     
-    @output
-    @render.plot
     def plot_ebi_planetscope():
         idx = input.date_slider()
         
@@ -451,9 +556,14 @@ def server(input, output, session):
     
         total_ebi = _plot_ebi_planetscope(file=found_file)
         curr_total_ebi.set(total_ebi)
-        
-            
 
+    @output
+    @render.plot
+    def plot_ebi():
+        if input.satellite() == "PlanetScope":
+            plot_ebi_planetscope()
+        if input.satellite() == "Sentinel-2":
+            _plot_ebi_sentinel2()
 
     @output
     @render.plot

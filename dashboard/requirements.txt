@@ -4,3 +4,4 @@ faicons
 shiny
 pandas
 rasterio
+pyproj
