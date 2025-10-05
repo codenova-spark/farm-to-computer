@@ -65,7 +65,7 @@ For our prototype, we decided to focus on the area around [Shoreline Fruits](htt
 
 We downloaded datasets covering Shoreline Fruits from [Sentinel-2](https://www.esa.int/Applications/Observing_the_Earth/Copernicus/Sentinel-2) and [PlanetScope](https://earth.esa.int/eogateway/missions/planetscope) databases. 
 
-We are using the [Daymet](https://www.earthdata.nasa.gov/data/projects/daymet) weather dataset to track daily temperatures. We used the `meteostat` Python package to gather hourly temperature information from Cherry Capital Airport in Traverse City and the Antrim County Airport, which are the two nearest airports to Shoreline Fruits. Then we used `geopy` to interpolate this data to get the temperature at the orchard.
+We are using data from national weather stations to track daily temperatures. We used the `meteostat` Python package to gather hourly temperature information from Cherry Capital Airport in Traverse City and the Antrim County Airport, which are the two nearest airports to Shoreline Fruits. Then we used `geopy` to interpolate this data to get the temperature at the orchard.
 
 ## Impact
 
