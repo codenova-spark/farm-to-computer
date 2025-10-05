@@ -71,7 +71,7 @@ coord_tvc = (44.7416, -85.5824)   # TVC
 coord_acb = (44.9886, -85.1984)   # ACB
 
 # Shoreline Fruit's orchard:
-cherrylat, cherrylon = 44.8324, -85.442
+cherrylat, cherrylon = 44.83444, -85.44333
 
 df_interp = interpolateTemp(
     df_tvc, df_acb,
@@ -96,14 +96,14 @@ interp_chill['chill_accum'] = interp_chill['chill_score'].cumsum()
 interp_chill['temp_interp_F'] = C_to_F(df_interp['temp_interp'])
 interp_chill['gdd_hr'] = np.maximum(interp_chill['temp_interp_F'] - 41, 0) / 24
 
-chill_threshold = 250
-if (interp_chill['chill_accum'] >= chill_threshold).any():
-    first_gdd_time = interp_chill[interp_chill['chill_accum'] >= chill_threshold].index[0]
-    interp_chill['gdd_hr_masked'] = np.where(interp_chill.index >= first_gdd_time, interp_chill['gdd_hr'], 0)
-else:
-    interp_chill['gdd_hr_masked'] = 0.0
+# chill_threshold = 250
+# if (interp_chill['chill_accum'] >= chill_threshold).any():
+#     first_gdd_time = interp_chill[interp_chill['chill_accum'] >= chill_threshold].index[0]
+#     interp_chill['gdd_hr_masked'] = np.where(interp_chill.index >= first_gdd_time, interp_chill['gdd_hr'], 0)
+# else:
+#     interp_chill['gdd_hr_masked'] = 0.0
 
-interp_chill['gdd_cum'] = interp_chill['gdd_hr_masked'].cumsum()
+# interp_chill['gdd_cum'] = interp_chill['gdd_hr_masked'].cumsum()
 
 df_interp.index = pd.to_datetime(df_interp.index)
 df_tvc.index = pd.to_datetime(df_tvc.index)
@@ -157,6 +157,17 @@ def _dayplot(idx):
     ax.yaxis.grid(True, color='lightgray', alpha=0.2)
     # plt.tight_layout()
 
+def compute_gdd_cum(threshold=250):
+    if (interp_chill['chill_accum'] >= threshold).any():
+        first_gdd_time = interp_chill[interp_chill['chill_accum'] >= threshold].index[0]
+        interp_chill['gdd_hr_masked'] = np.where(interp_chill.index >= first_gdd_time, interp_chill['gdd_hr'], 0)
+    else:
+        interp_chill['gdd_hr_masked'] = 0.0
+
+    gdd_cum = interp_chill['gdd_hr_masked'].cumsum()
+    return gdd_cum
+
+
 def _longterm_plot(threshold=250, idx=0, ideal_gdd=230):
     from matplotlib.gridspec import GridSpec
     fig = plt.figure(figsize=(12, 8))
@@ -165,6 +176,8 @@ def _longterm_plot(threshold=250, idx=0, ideal_gdd=230):
     ax2 = plt.subplot(gs[1], sharex=ax1)  #chill hours subplot
     ax3 = plt.subplot(gs[2], sharex=ax1)
 
+    gdd_cum = compute_gdd_cum(threshold=threshold)
+
     # --------- Highlight 5-day window ---------
     if idx > len(unique_dates) - 5:
         idx = len(unique_dates) - 5
@@ -172,6 +185,14 @@ def _longterm_plot(threshold=250, idx=0, ideal_gdd=230):
     window_end = pd.to_datetime(unique_dates[idx + 5 - 1]) + pd.Timedelta(hours=23)
     for ax in (ax1, ax2, ax3):
         ax.axvspan(window_start, window_end, color="gold", alpha=0.15, zorder=0)
+        
+    # --------- Highlight Bloom windows --------
+    bloom_windows = _bloom_windows()
+    for window_dates in bloom_windows:
+        start = pd.to_datetime(window_dates[0])
+        end = pd.to_datetime(window_dates[-1]) + pd.Timedelta(hours=23)
+        for ax in (ax1, ax2, ax3):
+            ax.axvspan(start, end, color="purple", alpha=0.12, zorder=0)
 
     ax1.plot(df_interp.index, C_to_F(df_interp['temp_interp']), label='Interpolated temp. of orchard)', color='red', linewidth=1 )
     ax1.axhspan(ymin=C_to_F(7.2222), ymax=C_to_F(15.5556), facecolor='grey', alpha=0.3, label="moderate temp, zero weight")
@@ -191,7 +212,7 @@ def _longterm_plot(threshold=250, idx=0, ideal_gdd=230):
       ax2.plot(first_time, first_accum, 'ro', label=f"First Reached 250 ({first_time.strftime('%Y-%m-%d %H:%M')})")
       ax2.axvline(first_time, color='red', linestyle=':', alpha=0.6)
 
-    ax3.plot(interp_chill.index, interp_chill['gdd_cum'], color='olive', label='Accumulated GDD (F>41)', linewidth=2)
+    ax3.plot(interp_chill.index, gdd_cum, color='olive', label='Accumulated GDD (F>41)', linewidth=2)
     ax3.axhline(ideal_gdd, color='red', linestyle=':', alpha=0.6, label=f'Ideal GDD ({ideal_gdd})')
     
     for ax in (ax1, ax2, ax3):
@@ -245,6 +266,78 @@ def _plot_ebi_planetscope(file="20250311.tif"):
     plt.axis("off")
     total_ebi = np.sum(ebi_norm[veg_mask])
     return total_ebi
+
+def _bloom_windows():
+    
+    epsilon = 10e-6
+    
+    bloom_windows = []
+    n = len(unique_dates)
+    for idx in range(n - 4):
+        window = unique_dates[idx:idx+5]
+        window_dates = unique_dates[idx:idx+5]
+        found_file = None
+        for d in window_dates:
+            date_str = pd.to_datetime(d).strftime("%Y%m%d")
+            candidate = f"./data/planetscope/{date_str}.tif"
+            if os.path.exists(candidate):
+                found_file = candidate
+                break
+        if found_file is not None:
+            fdat = rasterio.open(found_file)
+            blue  = fdat.read(1).astype(float) / 10000.0
+            green = fdat.read(2).astype(float) / 10000.0
+            red   = fdat.read(3).astype(float) / 10000.0
+            nir   = fdat.read(4).astype(float) / 10000.0
+            no_of_pixels = blue.size
+
+            # Compute EBI
+            ebi = (red + green + blue) / (green / (blue + epsilon) + epsilon) / (red - blue + 256)
+            ebi_norm = (ebi - np.nanmin(ebi)) / (np.nanmax(ebi) - np.nanmin(ebi) + epsilon)
+
+            # Compute NDVI for vegetation mask
+            ndvi = (nir - red) / (nir + red + epsilon)
+
+            # Vegetation mask
+            veg_mask = ndvi > 0.5  # adjust threshold if needed
+
+            # Apply mask: keep EBI where vegetation, set non-veg to 0 (black)
+            ebi_masked = np.zeros_like(ebi_norm)
+            ebi_masked[veg_mask] = ebi_norm[veg_mask]
+            total_ebi = np.sum(ebi_norm[veg_mask])
+            avg_ebi = total_ebi / no_of_pixels
+            
+            if (avg_ebi > 0.25 and avg_ebi < 0.27): bloom_windows.append(window)
+            
+    intervals = []
+    for window_dates in bloom_windows:
+        start = pd.to_datetime(window_dates[0])
+        end = pd.to_datetime(window_dates[-1]) + pd.Timedelta(hours=23)
+        intervals.append((start, end))
+
+    # Sort intervals by start time
+    intervals.sort(key=lambda x: x[0])
+
+    # Merge overlapping intervals
+    merged = []
+    for interval in intervals:
+        if not merged:
+            merged.append(list(interval))
+        else:
+            last = merged[-1]
+            # Calculate the gap in days between last[1] and interval[0]
+            gap_days = (interval[0] - last[1]).days
+            if interval[0] <= last[1] or gap_days < 7:
+                # Overlap or less than 10 days apart: merge
+                last[1] = max(last[1], interval[1])
+            else:
+                merged.append(list(interval))
+            
+            
+    return merged
+            
+            
+            
 
 
 
@@ -390,6 +483,7 @@ def server(input, output, session):
 
     @render.text
     def gdd_cum():
+        gdd_cum_value = compute_gdd_cum(threshold=input.chill_threshold())
         idx = input.date_slider()
         if idx > len(unique_dates) - 5:
             idx = len(unique_dates) - 5
@@ -397,7 +491,7 @@ def server(input, output, session):
         mask = interp_chill.index.date == end_day.date() if hasattr(end_day, 'date') else end_day
         sub = interp_chill[mask]
         if len(sub) > 0:
-            last_gdd = sub['gdd_cum'].iloc[-1]
+            last_gdd = gdd_cum_value.iloc[-1]
             return f"{last_gdd:.1f}"
         else:
             return "N/A"

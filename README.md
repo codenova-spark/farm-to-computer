@@ -37,7 +37,7 @@ Cherry trees rely on two crucial processes in order to bloom.
 Cherry trees become dormant during the winter time, when temperatures drop below freezing. To start waking up, cherry trees require a certain number of "chill hours", that is temperatures in the range 32-45 F. The majority of cherries grown in Michigan are tart cherries, which require 1200 or more chill hours to produce blossoms.
 
 During the chill phase, warm days can lead to set-backs. If temperatures rise above 60 F, the chill hour "clock" will wind back or get reset entirely. This process is highly complicated, and there are few models one can use to track chill hours:
-- The **simplest model** tracks the total number of hours in the temperature range 32-45 F. it does not account for set backs due to unusually warm days.
+- The **simplest model** tracks the total number of hours in the temperature range 32-45 F. It does not account for set backs due to unusually warm days.
 - The **Utah model** adds negative time for hours above 60 F during the chill hours accumulation phase.
 - The **dynamic model** considers a two step process. First, a temperature-sensitive compound accumulates during chill hours, and can be destroyed by warmer temperatures (the reversible process). When enough of the precursor compound accumulates, it can be converted to a more stable substance that is stored and does not get destroyed (the irreversible process).
 
