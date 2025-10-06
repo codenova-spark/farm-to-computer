@@ -12,7 +12,7 @@ from geopy.distance import geodesic
 import pandas as pd
 
 # Import data from shared.py
-from shared import app_dir, df
+from shared import app_dir
 from shiny import App, reactive, render, ui
 
 import rasterio
@@ -454,16 +454,6 @@ def server(input, output, session):
         curr_total_ebi.set(total_ebi)
         
             
-
-
-    @output
-    @render.plot
-    def temperature_detail():
-        n = input.time()
-        x = np.linspace(0, 2 * np.pi, n//100)
-        plt.scatter(x, np.sin(x))
-        plt.ylim(-2, 2)
-
     @render.text
     def chill_point_count():
         # Get idx of 5-day window start
