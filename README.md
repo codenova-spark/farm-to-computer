@@ -76,17 +76,17 @@ We used pyShiny to make an interactive plotting tool to capture blooming events 
 To run the app, first clone this repository to your local machine. Then enter the dashboard folder.
 ```
 git clone https://github.com/codenova-spark/farm-to-computer.git
-cd farm-to-computer/dashboard/
+cd farm-to-computer/
 ```
 
 In your local environment, install the necessary libraries to run the app:
 ```
-pip install -r requirements.txt
+pip install -r dashboard/requirements.txt
 ```
 
 Then run the app, which will launch in your preferred web browser:
 ```
-shiny run --launch-browser app.py
+shiny run --launch-browser dashboard/app.py
 ```
 
 ## Impact
