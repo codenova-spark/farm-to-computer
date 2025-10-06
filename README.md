@@ -99,6 +99,8 @@ What can apple farmers do to prevent crop losses?
 
 ## AI Statement
 
-We used Google Gemini for help researching the blooming conditions for cherry trees, as well as the cherry's significance to Michigan agriculture. This is how we learned about chill hours and GDD. All writing in this document was written independently after synthesizing the necessary information.
+We used Google Gemini for help researching the blooming conditions for cherry trees, as well as the cherry's significance to Michigan agriculture. This is how we learned about chill hours and GDD. All writing in this document was written independently after synthesizing the necessary information. We also used ChatGPT to learn about the pyShiny API and learn about the available input objects (sliders, radio buttons, etc).
+
+We used Github Copilot and ChatGPT to discover and implement python packages we had never used before (e.g., meteostat and rasterio), accelerate data cleaning, and accelerate data visualization.
 
 
