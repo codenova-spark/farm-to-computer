@@ -2,17 +2,19 @@
 
 Our NASA Space Apps Challenge team is monitoring cherry blossoms to chart cherry yields with temperature
 
+[Click here to see our presentation slides](https://drive.google.com/file/d/1n8_Ed5kfiNfeTvaMkJb6jXVrHmSvs-mF/view?usp=sharing)
+
 ## Problem
 
 How do temperature fluctuations affect Michigan cherry season?
 
 ### Cherries and Michigan
 
-Not only do cherry trees produce beautiful pink and white blossoms, they serve a major role in the Michigan economy. As the top producer of tart cherries in the US, Michigan cherries are a matter of state pride. The Traverse City annual National Cherry Festival draws in thousands of visitors each year and generates millions of dollars in tourism. Overall cherry production contributes to the hundreds of millions of dollars for in state agriculture industry.
+Not only do cherry trees produce beautiful pink and white blossoms, they serve a major role in the Michigan economy. As the top producer of tart cherries in the US, Michigan cherries are a matter of state pride. The Traverse City annual National Cherry Festival draws in thousands of visitors each year and generates millions of dollars in tourism. Overall cherry production contributes hundreds of millions of dollars to Michigan state agriculture industry.
 
 ![An image of cherry trees in bloom near Traverse City, MI](https://assets.simpleviewinc.com/sv-traversecity/image/upload/c_fill,h_491,q_100,w_1440/v1/cms_resources/cms_resources/cms_resources/cms_resources/clients/traversecity/1_Cherry_Blossoms_922eab3d-0357-47df-a773-203fade5440b.jpg)
 
-Cherry blossoms (and thus cherry production) require specific temperature conditions to bloom. To produce fruit, cherry blossoms rely on pollinators and a continuation of warm temperatures. In 2012, a sudden freeze killed 90% of Michigan's cherry crops, resulting in over $200 million in losses for Michigan fruit farmers. Rising global temperatures have led to milder winters and temperature fluctuations that can greatly affect cherry production.
+Cherry blossoms (and thus cherry production) require specific temperature conditions to bloom. To produce fruit, cherry blossoms rely on pollinators and a continuation of warm temperatures. In 2012, a sudden freeze killed 90% of Michigan's cherry blossoms, resulting in over $200 million in losses for Michigan fruit farmers. Rising global temperatures have led to milder winters and temperature fluctuations that can greatly affect cherry production.
 
 ## Solution
 
@@ -67,9 +69,29 @@ We downloaded datasets covering Shoreline Fruits from [Sentinel-2](https://www.e
 
 We are using data from national weather stations to track daily temperatures. We used the `meteostat` Python package to gather hourly temperature information from Cherry Capital Airport in Traverse City and the Antrim County Airport, which are the two nearest airports to Shoreline Fruits. Then we used `geopy` to interpolate this data to get the temperature at the orchard.
 
+### Interactive App
+
+We used pyShiny to make an interactive plotting tool to capture blooming events from satellite data and cross-reference it to temperatures leading up to the event. 
+
+To run the app, first clone this repository to your local machine. Then enter the dashboard folder.
+```
+git clone https://github.com/codenova-spark/farm-to-computer.git
+cd farm-to-computer/dashboard/
+```
+
+In your local environment, install the necessary libraries to run the app:
+```
+pip install -r requirements.txt
+```
+
+Then run the app, which will launch in your preferred web browser:
+```
+shiny run --launch-browser app.py
+```
+
 ## Impact
 
-What can we expect in the future?
+Users can run the 
 
 ## What's next?
 
