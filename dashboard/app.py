@@ -1,10 +1,11 @@
-import matplotlib
+# import matplotlib
 import numpy as np
 import matplotlib.pyplot as plt
 # matplotlib.use('Agg')
 from faicons import icon_svg
 
-from meteostat import Stations, Hourly
+# from meteostat import Stations, Hourly
+from meteostat import Hourly
 from datetime import datetime
 from geopy.distance import geodesic
 
